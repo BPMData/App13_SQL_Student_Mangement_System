@@ -1,20 +1,23 @@
-from PyQt6.QtWidgets import QApplication, QVBoxLayout, QDataWidgetMapper, \
-    QToolTip, QLabel, QWidget, QMainWindow, QTableWidget, QTableWidgetItem
-from PyQt6.QtGui import QAction
-import pandas as pd
-import re
-import sys
 import sqlite3
+import sys
+
+from PyQt6.QtGui import QAction
+from PyQt6.QtWidgets import QApplication, QMainWindow, QTableWidget,\
+    QTableWidgetItem, QDialog, QVBoxLayout, QLineEdit, QPushButton, QComboBox
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Student Management System")
+        self.setMinimumSize(600, 300)
+
 
         file_menu = self.menuBar().addMenu("&File")
         help_menu = self.menuBar().addMenu("&Help")
 
         add_student_action = QAction("Add Student", self)
+        add_student_action.triggered.connect(self.insert)
         file_menu.addAction(add_student_action)
 
         about_action = QAction("About", self)
@@ -27,8 +30,10 @@ class MainWindow(QMainWindow):
         self.table.verticalHeader().setVisible(False)
         self.setCentralWidget(self.table)
 
+    # noinspection PyUnresolvedReferences
     def load_data(self, database):
         connection = sqlite3.connect(database)
+        # noinspection PyUnresolvedReferences
         query = connection.execute("SELECT * FROM students")
         self.table.setRowCount(0)
         for row_index, whole_row in enumerate(query):
@@ -39,9 +44,66 @@ class MainWindow(QMainWindow):
                 print("this is the column data", cell_contents)
         connection.close()
 
+    def insert(self):
+        dialog = InsertDialog()
+        dialog.exec()
+
+class InsertDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Insert Student Data")
+        # self.setFixedWidth(300)
+        # self.setFixedHeight(300)
+        self.setFixedSize(300, 300)
+
+        layout = QVBoxLayout()
+
+        self.student_name = QLineEdit()
+        self.student_name.setPlaceholderText("Name")
+        layout.addWidget(self.student_name)
+
+        self.course_choice = QComboBox()
+        courses = ["Astronomy", "Biology", "Math", "Physics"]
+        self.course_choice.addItems(courses)
+        layout.addWidget(self.course_choice)
+        # # ChatGPT Suggestion
+        # self.combo.currentIndexChanged.connect(self.update_closer)
+
+        # Add mobile number
+        self.phone_number = QLineEdit()
+        self.phone_number.setPlaceholderText("Contact Number")
+        layout.addWidget(self.phone_number)
+
+        # Add a save button
+        save_button = QPushButton("Insert Student Data")
+        save_button.clicked.connect(self.save_student)  # This will close the dialog.
+        layout.addWidget(save_button)
+
+        cancel_button = QPushButton("Cancel")
+        cancel_button.clicked.connect(self.close)  # This will close the dialog.
+        layout.addWidget(cancel_button)
+
+        self.setLayout(layout)
+
+
+    def save_student(self):
+        name = self.student_name.text()
+        course = self.course_choice.itemText(self.course_choice.currentIndex())
+        mobile = self.phone_number.text()
+        connection = sqlite3.connect("database.db")
+        cursor = connection.cursor()
+        # noinspection PyUnresolvedReferences
+        cursor.execute("INSERT INTO students (name,course, mobile) VALUES (?, ?, ?)",
+                       (name, course, mobile))
+        connection.commit()
+        cursor.close()
+        connection.close()
+        sms.load_data("database.db")
+
+
 
 app = QApplication(sys.argv)
 sms = MainWindow()
-sms.show()
 sms.load_data("database.db")
+sms.show()
 sys.exit(app.exec())
