@@ -3,10 +3,7 @@ from PyQt6.QtWidgets import QApplication, QVBoxLayout, QDataWidgetMapper,\
     QToolTip, QLabel, QWidget, QGridLayout, QLineEdit, QPushButton, QMainWindow
 from datetime import datetime
 
-
-
-
-class AgeCalculator(QWidget):
+class AgeCalculator(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Age Calcuator")
@@ -23,9 +20,6 @@ class AgeCalculator(QWidget):
         calculate_button.clicked.connect(self.calculate_age)
         self.output_label = QLabel("")
 
-        QLabel("")
-
-
         # Add widgets to grid layout
         grid.addWidget(name_label, 0, 0)
         grid.addWidget(self.name_line_edit, 0, 1)
@@ -35,7 +29,9 @@ class AgeCalculator(QWidget):
         # first (0th) column, make the button 1 row high and 2 columns wide.
         grid.addWidget(self.output_label, 3, 0, 1, 2)
 
-        self.setLayout(grid)
+        central_widget = QWidget()
+        central_widget.setLayout(grid)
+        self.setCentralWidget(central_widget)
 
     def calculate_age(self):
         current_year = datetime.now().year
