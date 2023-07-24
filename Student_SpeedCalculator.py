@@ -54,7 +54,7 @@ class SpeedCalculator(QWidget):
         try:
             dist = float(self.dist_line_edit.text())
             time = float(self.time_line_edit.text())
-            self.avg_speed = dist/time
+            self.avg_speed = round(dist/time,2)
 
             if self.combo.currentText() == 'Freedom (Miles)':
                 closer = "Miles Prower"
