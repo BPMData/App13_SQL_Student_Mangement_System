@@ -1,6 +1,7 @@
 import sqlite3
 import sys
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QApplication, QMainWindow, QTableWidget,\
     QTableWidgetItem, QDialog, QVBoxLayout, QLineEdit, QPushButton, QComboBox
@@ -137,7 +138,8 @@ class SearchDialog(QDialog):
 
         # Add a search button
         search_button = QPushButton("Search records")
-        search_button.clicked.connect(self.search_records)  # This will close the dialog.
+        search_button.clicked.connect(self.search_records) # This will call the search.
+        search_button.clicked.connect(self.close)
         layout.addWidget(search_button)
 
         # Add a cancel button
@@ -148,7 +150,21 @@ class SearchDialog(QDialog):
         self.setLayout(layout)
 
     def search_records(self):
-        pass
+        name = self.search_name.text()
+        connection = sqlite3.connect("database.db")
+        cursor = connection.cursor()
+        query = cursor.execute("SELECT * FROM students WHERE UPPER(name) LIKE UPPER(?)", ('%'+ name + '%',))
+        rows = list(query)
+        print(rows)
+        items = sms.table.findItems(name, Qt.MatchFlag.MatchContains)
+        for item in items:
+            row = item.row()
+            for column in range(sms.table.columnCount()):
+                sms.table.item(row, column).setSelected(True)
+        cursor.close()
+        connection.close()
+
+
 
 
 app = QApplication(sys.argv)
