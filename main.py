@@ -15,6 +15,7 @@ class MainWindow(QMainWindow):
 
         file_menu = self.menuBar().addMenu("&File")
         help_menu = self.menuBar().addMenu("&Help")
+        find_menu = self.menuBar().addMenu("&Find")
 
         add_student_action = QAction("Add Student", self)
         add_student_action.triggered.connect(self.insert)
@@ -23,6 +24,12 @@ class MainWindow(QMainWindow):
         about_action = QAction("About", self)
         help_menu.addAction(about_action)
         about_action.setMenuRole(QAction.MenuRole.NoRole) # This line isn't actually necessary but I thought it was interesting.
+
+        search_action = QAction("Search", self)
+        search_action.triggered.connect(self.search)
+        find_menu.addAction(search_action)
+
+
 
         self.table = QTableWidget()
         self.table.setColumnCount(4)
@@ -47,6 +54,12 @@ class MainWindow(QMainWindow):
     def insert(self):
         dialog = InsertDialog()
         dialog.exec()
+
+    def search(self):
+        dialog = SearchDialog()
+        dialog.exec()
+
+
 
 class InsertDialog(QDialog):
     def __init__(self):
@@ -100,6 +113,42 @@ class InsertDialog(QDialog):
         connection.close()
         sms.load_data("database.db")
 
+class SearchDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Search Student Records")
+        self.setFixedWidth(600)
+        # self.setFixedHeight(300)
+        # self.setFixedSize(300, 100)
+
+        layout = QVBoxLayout()
+
+        self.search_name = QLineEdit()
+        self.search_name.setPlaceholderText("Name to search for")
+        layout.addWidget(self.search_name)
+
+        # self.search_course = QComboBox()
+        # courses = ["Astronomy", "Biology", "Math", "Physics"]
+        # self.search_course.addItems(courses)
+        # layout.addWidget(self.search_course)
+        # # # ChatGPT Suggestion
+        # # self.combo.currentIndexChanged.connect(self.update_closer)
+
+
+        # Add a search button
+        search_button = QPushButton("Search records")
+        search_button.clicked.connect(self.search_records)  # This will close the dialog.
+        layout.addWidget(search_button)
+
+        # Add a cancel button
+        cancel_button = QPushButton("Cancel")
+        cancel_button.clicked.connect(self.close)  # This will close the dialog.
+        layout.addWidget(cancel_button)
+
+        self.setLayout(layout)
+
+    def search_records(self):
+        pass
 
 
 app = QApplication(sys.argv)
