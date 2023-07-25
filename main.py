@@ -5,14 +5,17 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtWidgets import QApplication, QMainWindow, QTableWidget,\
     QTableWidgetItem, QDialog, QVBoxLayout, QLineEdit, QPushButton, QComboBox, \
-    QAbstractItemView, QToolBar
+    QAbstractItemView, QToolBar, QStatusBar, QLabel, QMessageBox, QStyle, QGridLayout
 
+# buttons_added = False Alternate_solution
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Student Management System")
         self.setMinimumSize(600, 300)
+
+        self.buttons_added = False
 
 
         file_menu = self.menuBar().addMenu("&File")
@@ -38,7 +41,7 @@ class MainWindow(QMainWindow):
         self.table.setHorizontalHeaderLabels(("Student_ID", "Name", "Course", "Mobile_Number"))
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger(0)) # Edits to the table directly won't actually take efect, so we disable the ability to think you're doing it.
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior(1))
+        # self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior(1)) #Whoops this interferes with the edit functionality.
         self.setCentralWidget(self.table)
 
         toolbar = QToolBar()
@@ -47,6 +50,50 @@ class MainWindow(QMainWindow):
         toolbar.addAction(add_student_action)
         toolbar.addAction(search_action)
 
+        self.statusbar = QStatusBar()
+        self.setStatusBar(self.statusbar)
+
+        # Detect a cell click
+        self.table.cellClicked.connect(self.cell_clicked)
+
+    def cell_clicked(self):
+        # global buttons_added Alternate_solution
+        edit_button = QPushButton("Edit Record")
+        edit_button.clicked.connect(self.edit)
+
+
+        delete_button = QPushButton("Delete Record")
+        delete_button.clicked.connect(self.delete)
+
+        # Third solution
+        children = self.findChildren(QPushButton)
+        if children:
+            for child in children:
+                self.statusbar.removeWidget(child)
+        self.statusbar.addWidget(edit_button)
+        self.statusbar.addWidget(delete_button)
+
+
+        # Second solution
+        # if not self.buttons_added:
+        #     self.statusbar.addWidget(edit_button)
+        #     self.statusbar.addWidget(delete_button)
+        #     self.buttons_added = True
+        # else:
+        #     pass
+
+        # if buttons_added == False:
+        #     self.statusbar.addWidget(edit_button)
+        #     self.statusbar.addWidget(delete_button)
+        #     buttons_added = True Alternate_solution
+
+    def edit(self):
+        dialog = EditDialog()
+        dialog.exec()
+
+    def delete(self):
+        dialog = DeleteDialog()
+        dialog.exec()
 
     # noinspection PyUnresolvedReferences
     def load_data(self, database):
@@ -70,6 +117,123 @@ class MainWindow(QMainWindow):
         dialog = SearchDialog()
         dialog.exec()
 
+
+class DeleteDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Delete Student Record")
+        self.setFixedWidth(200)
+        # self.setWindowIcon(QIcon('icons/icons/danger.jpg'))
+
+        pixmap = self.style().standardIcon(QStyle.StandardPixmap.SP_TrashIcon).pixmap(16, 16)
+        self.setWindowIcon(QIcon(pixmap))
+        layout = QGridLayout()
+
+        row_index = sms.table.currentRow()
+        self.student_id = int(sms.table.item(row_index, 0).text())
+        student_name = sms.table.item(row_index, 1).text()
+        student_course = sms.table.item(row_index, 2).text()
+        student_mobile = sms.table.item(row_index, 3).text()
+
+        self.warning = QLabel("Are you ABSOLUTELY SURE you want to delete this student entirely from the records?")
+        self.warning.setWordWrap(True)
+        self.warning.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.warning, 0, 0, 1,2) # Add warning at row 0, column 0, make it 1 row high, 2 columns wide
+
+        # Add a save button
+        save_button = QPushButton("Yes, I'm sure.")
+        save_button.clicked.connect(self.delete_student)  # This will close the dialog.
+        layout.addWidget(save_button, 1, 0)
+
+        cancel_button = QPushButton("Cancel")
+        cancel_button.clicked.connect(self.close)  # This will close the dialog.
+        layout.addWidget(cancel_button, 1, 1)
+
+        self.setLayout(layout)
+
+    def delete_student(self):
+        connection = sqlite3.connect("database.db")
+        cursor = connection.cursor()
+        cursor.execute("DELETE FROM students WHERE id = ?",
+                       (self.student_id, ))
+        connection.commit()
+        cursor.close()
+        connection.close()
+        sms.load_data("database.db")
+
+        msg = QMessageBox()
+        msg.setWindowTitle("Update Status")
+        pixmap3 = self.style().standardIcon(QStyle.StandardPixmap.SP_DialogYesButton).pixmap(16, 16)
+        msg.setWindowIcon(QIcon(pixmap3))
+        msg.setText("That kid's gone!")
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.exec()
+        self.close()
+
+class EditDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setFixedWidth(300)
+        self.setWindowTitle("Edit Student Data")
+        layout = QVBoxLayout()
+
+# Here's the part I didn't know how to do - access table data
+
+        row_index = sms.table.currentRow()
+        self.student_id = int(sms.table.item(row_index, 0).text())
+        student_name = sms.table.item(row_index, 1).text()
+        student_course = sms.table.item(row_index, 2).text()
+        student_mobile = sms.table.item(row_index, 3).text()
+        print(row_index, student_mobile, self.student_id, student_course, student_name)
+
+        self.student_name = QLineEdit(student_name)
+        layout.addWidget(self.student_name)
+
+        self.course_choice = QComboBox()
+        courses = ["Astronomy", "Biology", "Math", "Physics"]
+        self.course_choice.addItems(courses)
+        self.course_choice.setCurrentText(student_course)
+        layout.addWidget(self.course_choice)
+
+        # Add mobile number
+        self.phone_number = QLineEdit(student_mobile)
+        self.phone_number.setPlaceholderText("Contact Number")
+        layout.addWidget(self.phone_number)
+
+        # Add a save button
+        save_button = QPushButton("Edit Student Data")
+        save_button.clicked.connect(self.edit_student)  # This will close the dialog.
+        layout.addWidget(save_button)
+
+        cancel_button = QPushButton("Cancel")
+        cancel_button.clicked.connect(self.close)  # This will close the dialog.
+        layout.addWidget(cancel_button)
+
+        self.setLayout(layout)
+
+    def edit_student(self):
+        name = self.student_name.text()
+        course = self.course_choice.itemText(self.course_choice.currentIndex())
+        mobile = self.phone_number.text()
+        connection = sqlite3.connect("database.db")
+        cursor = connection.cursor()
+        # noinspection PyUnresolvedReferences
+        # cursor.execute(f"UPDATE students SET name='{name}', course='{course}', mobile={int(mobile)}) WHERE id={self.student_id}", (name, course, mobile))
+        # cursor.execute(f"UPDATE students SET name='{name}', course='{course}', mobile={int(mobile)}) WHERE id={self.student_id}")
+        cursor.execute("UPDATE students SET name = ?, course = ?, mobile = ? WHERE id = ?",
+                       (name, course, mobile, self.student_id))
+        connection.commit()
+        cursor.close()
+        connection.close()
+        sms.load_data("database.db")
+
+        msg = QMessageBox()
+        msg.setWindowTitle("Update Status")
+        msg.setText("Changes saved successfully!")
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.exec()
+
+        self.close()
 
 
 class InsertDialog(QDialog):
@@ -124,6 +288,14 @@ class InsertDialog(QDialog):
         connection.close()
         sms.load_data("database.db")
 
+        msg = QMessageBox()
+        msg.setWindowTitle("Update Status")
+        msg.setText("Student record saved successfully!")
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.exec()
+
+        self.close()
+
 class SearchDialog(QDialog):
     def __init__(self):
         super().__init__()
@@ -173,6 +345,7 @@ class SearchDialog(QDialog):
                 sms.table.item(row, column).setSelected(True)
         cursor.close()
         connection.close()
+        self.close()
 
 
 
