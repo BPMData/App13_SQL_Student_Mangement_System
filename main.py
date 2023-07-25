@@ -2,9 +2,10 @@ import sqlite3
 import sys
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtWidgets import QApplication, QMainWindow, QTableWidget,\
-    QTableWidgetItem, QDialog, QVBoxLayout, QLineEdit, QPushButton, QComboBox
+    QTableWidgetItem, QDialog, QVBoxLayout, QLineEdit, QPushButton, QComboBox, \
+    QAbstractItemView, QToolBar
 
 
 class MainWindow(QMainWindow):
@@ -18,7 +19,7 @@ class MainWindow(QMainWindow):
         help_menu = self.menuBar().addMenu("&Help")
         find_menu = self.menuBar().addMenu("&Find")
 
-        add_student_action = QAction("Add Student", self)
+        add_student_action = QAction(QIcon('icons/icons/add.png'), "Add Student", self)
         add_student_action.triggered.connect(self.insert)
         file_menu.addAction(add_student_action)
 
@@ -26,7 +27,7 @@ class MainWindow(QMainWindow):
         help_menu.addAction(about_action)
         about_action.setMenuRole(QAction.MenuRole.NoRole) # This line isn't actually necessary but I thought it was interesting.
 
-        search_action = QAction("Search", self)
+        search_action = QAction(QIcon('icons/icons/search.png'), "Search", self)
         search_action.triggered.connect(self.search)
         find_menu.addAction(search_action)
 
@@ -36,7 +37,16 @@ class MainWindow(QMainWindow):
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(("Student_ID", "Name", "Course", "Mobile_Number"))
         self.table.verticalHeader().setVisible(False)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger(0)) # Edits to the table directly won't actually take efect, so we disable the ability to think you're doing it.
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior(1))
         self.setCentralWidget(self.table)
+
+        toolbar = QToolBar()
+        toolbar.setMovable(True)
+        self.addToolBar(toolbar)
+        toolbar.addAction(add_student_action)
+        toolbar.addAction(search_action)
+
 
     # noinspection PyUnresolvedReferences
     def load_data(self, database):
