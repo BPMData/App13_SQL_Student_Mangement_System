@@ -1,20 +1,23 @@
 import sqlite3
 import sys
+import os
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtWidgets import QApplication, QMainWindow, QTableWidget,\
     QTableWidgetItem, QDialog, QVBoxLayout, QLineEdit, QPushButton, QComboBox, \
     QAbstractItemView, QToolBar, QStatusBar, QLabel, QMessageBox, QStyle, QGridLayout
-
-# buttons_added = False Alternate_solution
+import mysql.connector
 
 class DatabaseConnection:
-    def __init__(self, database_file="database.db"):
-        self.database_file = database_file
+    def __init__(self,  password, host="localhost", user="root", database="school"):
+        self.host = host
+        self.user = user
+        self.password = os.getenv(password)
+        self.database = database
 
     def connect(self):
-        connection = sqlite3.connect(self.database_file)
+        connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password, database=self.database)
         return connection
 
 class MainWindow(QMainWindow):
@@ -36,7 +39,6 @@ class MainWindow(QMainWindow):
 
         about_action = QAction("About", self)
         help_menu.addAction(about_action)
-        # about_action.setMenuRole(QAction.MenuRole.NoRole) # This line isn't actually necessary but I thought it was interesting.
         about_action.triggered.connect(self.about)
 
 
@@ -84,20 +86,6 @@ class MainWindow(QMainWindow):
         self.statusbar.addWidget(edit_button)
         self.statusbar.addWidget(delete_button)
 
-
-        # Second solution
-        # if not self.buttons_added:
-        #     self.statusbar.addWidget(edit_button)
-        #     self.statusbar.addWidget(delete_button)
-        #     self.buttons_added = True
-        # else:
-        #     pass
-
-        # if buttons_added == False:
-        #     self.statusbar.addWidget(edit_button)
-        #     self.statusbar.addWidget(delete_button)
-        #     buttons_added = True Alternate_solution
-
     def edit(self):
         dialog = EditDialog()
         dialog.exec()
@@ -112,17 +100,22 @@ class MainWindow(QMainWindow):
 
     # noinspection PyUnresolvedReferences
     def load_data(self, database):
-        connection = DatabaseConnection().connect()
-        # noinspection PyUnresolvedReferences
-        query = connection.execute("SELECT * FROM students")
-        self.table.setRowCount(0)
-        for row_index, whole_row in enumerate(query):
-            self.table.insertRow(row_index)
-            for column_index, cell_contents in enumerate(whole_row):
-                self.table.setItem(row_index, column_index, QTableWidgetItem(str(cell_contents)))
-                print("this is the row data", whole_row)
-                print("this is the column data", cell_contents)
-        connection.close()
+        connection = DatabaseConnection('MySQL_Root').connect()
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT * FROM students")
+            query = cursor.fetchall()
+            self.table.setRowCount(0)
+            for row_index, whole_row in enumerate(query):
+                self.table.setRowCount(0)
+                for row_index, whole_row in enumerate(query):
+                    self.table.insertRow(row_index)
+                    for column_index, cell_contents in enumerate(whole_row):
+                        self.table.setItem(row_index, column_index, QTableWidgetItem(str(cell_contents)))
+                        print("this is the row data", whole_row)
+                        print("this is the column data", cell_contents)
+                connection.close()
+
+
 
     def insert(self):
         dialog = InsertDialog()
@@ -153,7 +146,6 @@ class DeleteDialog(QDialog):
         super().__init__()
         self.setWindowTitle("Delete Student Record")
         self.setFixedWidth(200)
-        # self.setWindowIcon(QIcon('icons/icons/danger.jpg'))
 
         pixmap = self.style().standardIcon(QStyle.StandardPixmap.SP_TrashIcon).pixmap(16, 16)
         self.setWindowIcon(QIcon(pixmap))
@@ -182,23 +174,23 @@ class DeleteDialog(QDialog):
         self.setLayout(layout)
 
     def delete_student(self):
-        connection = DatabaseConnection().connect()
-        cursor = connection.cursor()
-        cursor.execute("DELETE FROM students WHERE id = ?",
-                       (self.student_id, ))
-        connection.commit()
-        cursor.close()
-        connection.close()
-        sms.load_data("database.db")
+        connection = DatabaseConnection('MySQL_Root').connect()
+        with connection.cursor() as cursor:
+            cursor.execute("DELETE FROM students WHERE id = %s",
+                           (self.student_id, ))
+            connection.commit()
+            cursor.close()
+            connection.close()
+            sms.load_data("database.db")
 
-        msg = QMessageBox()
-        msg.setWindowTitle("Update Status")
-        pixmap3 = self.style().standardIcon(QStyle.StandardPixmap.SP_DialogYesButton).pixmap(16, 16)
-        msg.setWindowIcon(QIcon(pixmap3))
-        msg.setText("That kid's gone!")
-        msg.setIcon(QMessageBox.Icon.Information)
-        msg.exec()
-        self.close()
+            msg = QMessageBox()
+            msg.setWindowTitle("Update Status")
+            pixmap3 = self.style().standardIcon(QStyle.StandardPixmap.SP_DialogYesButton).pixmap(16, 16)
+            msg.setWindowIcon(QIcon(pixmap3))
+            msg.setText("That kid's gone!")
+            msg.setIcon(QMessageBox.Icon.Information)
+            msg.exec()
+            self.close()
 
 class EditDialog(QDialog):
     def __init__(self):
@@ -245,33 +237,29 @@ class EditDialog(QDialog):
         name = self.student_name.text()
         course = self.course_choice.itemText(self.course_choice.currentIndex())
         mobile = self.phone_number.text()
-        connection = DatabaseConnection().connect()
-        cursor = connection.cursor()
-        # noinspection PyUnresolvedReferences
-        # cursor.execute(f"UPDATE students SET name='{name}', course='{course}', mobile={int(mobile)}) WHERE id={self.student_id}", (name, course, mobile))
-        # cursor.execute(f"UPDATE students SET name='{name}', course='{course}', mobile={int(mobile)}) WHERE id={self.student_id}")
-        cursor.execute("UPDATE students SET name = ?, course = ?, mobile = ? WHERE id = ?",
-                       (name, course, mobile, self.student_id))
-        connection.commit()
-        cursor.close()
-        connection.close()
-        sms.load_data("database.db")
+        connection = DatabaseConnection('MySQL_Root').connect()
+        with connection.cursor() as cursor:
+            # noinspection PyUnresolvedReferences
+            cursor.execute("UPDATE students SET name = %s, course = %s, mobile = %s WHERE id = %s",
+                           (name, course, mobile, self.student_id))
+            connection.commit()
+            cursor.close()
+            connection.close()
+            sms.load_data("database.db")
 
-        msg = QMessageBox()
-        msg.setWindowTitle("Update Status")
-        msg.setText("Changes saved successfully!")
-        msg.setIcon(QMessageBox.Icon.Information)
-        msg.exec()
+            msg = QMessageBox()
+            msg.setWindowTitle("Update Status")
+            msg.setText("Changes saved successfully!")
+            msg.setIcon(QMessageBox.Icon.Information)
+            msg.exec()
 
-        self.close()
+            self.close()
 
 
 class InsertDialog(QDialog):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Insert Student Data")
-        # self.setFixedWidth(300)
-        # self.setFixedHeight(300)
         self.setFixedSize(300, 300)
 
         layout = QVBoxLayout()
@@ -284,8 +272,6 @@ class InsertDialog(QDialog):
         courses = ["Astronomy", "Biology", "Math", "Physics"]
         self.course_choice.addItems(courses)
         layout.addWidget(self.course_choice)
-        # # ChatGPT Suggestion
-        # self.combo.currentIndexChanged.connect(self.update_closer)
 
         # Add mobile number
         self.phone_number = QLineEdit()
@@ -308,23 +294,23 @@ class InsertDialog(QDialog):
         name = self.student_name.text()
         course = self.course_choice.itemText(self.course_choice.currentIndex())
         mobile = self.phone_number.text()
-        connection = DatabaseConnection().connect()
-        cursor = connection.cursor()
-        # noinspection PyUnresolvedReferences
-        cursor.execute("INSERT INTO students (name,course, mobile) VALUES (?, ?, ?)",
-                       (name, course, mobile))
-        connection.commit()
-        cursor.close()
-        connection.close()
-        sms.load_data("database.db")
+        connection = DatabaseConnection('MySQL_Root').connect()
+        with connection.cursor() as cursor:
+            # noinspection PyUnresolvedReferences
+            cursor.execute("INSERT INTO students (name,course, mobile) VALUES (%s, %s, %s)",
+                           (name, course, mobile))
+            connection.commit()
+            cursor.close()
+            connection.close()
+            sms.load_data("database.db")
 
-        msg = QMessageBox()
-        msg.setWindowTitle("Update Status")
-        msg.setText("Student record saved successfully!")
-        msg.setIcon(QMessageBox.Icon.Information)
-        msg.exec()
+            msg = QMessageBox()
+            msg.setWindowTitle("Update Status")
+            msg.setText("Student record saved successfully!")
+            msg.setIcon(QMessageBox.Icon.Information)
+            msg.exec()
 
-        self.close()
+            self.close()
 
 class SearchDialog(QDialog):
     def __init__(self):
@@ -339,14 +325,6 @@ class SearchDialog(QDialog):
         self.search_name = QLineEdit()
         self.search_name.setPlaceholderText("Name to search for")
         layout.addWidget(self.search_name)
-
-        # self.search_course = QComboBox()
-        # courses = ["Astronomy", "Biology", "Math", "Physics"]
-        # self.search_course.addItems(courses)
-        # layout.addWidget(self.search_course)
-        # # # ChatGPT Suggestion
-        # # self.combo.currentIndexChanged.connect(self.update_closer)
-
 
         # Add a search button
         search_button = QPushButton("Search records")
@@ -363,19 +341,20 @@ class SearchDialog(QDialog):
 
     def search_records(self):
         name = self.search_name.text()
-        connection = DatabaseConnection().connect()
-        cursor = connection.cursor()
-        query = cursor.execute("SELECT * FROM students WHERE UPPER(name) LIKE UPPER(?)", ('%'+ name + '%',))
-        rows = list(query)
-        print(rows)
-        items = sms.table.findItems(name, Qt.MatchFlag.MatchContains)
-        for item in items:
-            row = item.row()
-            for column in range(sms.table.columnCount()):
-                sms.table.item(row, column).setSelected(True)
-        cursor.close()
-        connection.close()
-        self.close()
+        connection = DatabaseConnection('MySQL_Root').connect()
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT * FROM students WHERE UPPER(name) LIKE UPPER(%s)", ('%'+ name + '%',))
+            query = cursor.fetchall()
+            rows = list(query)
+            print(rows)
+            items = sms.table.findItems(name, Qt.MatchFlag.MatchContains)
+            for item in items:
+                row = item.row()
+                for column in range(sms.table.columnCount()):
+                    sms.table.item(row, column).setSelected(True)
+            cursor.close()
+            connection.close()
+            self.close()
 
 
 
